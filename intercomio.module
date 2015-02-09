@@ -14,7 +14,62 @@ function intercomio_menu() {
     'file' => 'intercomio.admin.inc',
   );
 
+  $items['admin/config/services/intercomio/config'] = array(
+    'title' => 'Configuration',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+
+  $items['admin/config/services/intercomio/mapping'] = array(
+    'title' => t('Field Mapping'),
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('intercomio_mapping_admin_form'),
+    'access arguments' => array('access administration pages'),
+    'file' => 'intercomio.admin.inc',
+  );
+
   return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function intercomio_theme($existing, $type, $theme, $path) {
+  return array(
+    'intercomio_mapping_table' => array(
+      'render element' => 'element',
+    ),
+  );
+}
+
+/**
+ * Theme function for field mappings table.
+ */
+function theme_intercomio_mapping_table($vars) {
+  $element = $vars['element'];
+
+  $header = array(
+    'label' => t('Field'),
+    'mapping' => t('Intercom.io Mapping'),
+  );
+
+  $rows = array();
+  foreach (element_children($element) as $key) {
+    $row = array();
+
+    $row['data'] = array();
+    foreach ($header as $fieldname => $title) {
+      $row['data'][] = drupal_render($element[$key][$fieldname]);
+    }
+    $rows[] = $row;
+  }
+
+  return theme('table', array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array('id' => drupal_html_id('intercomio_mapping_table')),
+  ));
 }
 
 /**
@@ -78,6 +133,14 @@ function intercomio_intercomio_custom_data($keys) {
       if ($key === 'role_' . str_replace(' ', '_', $role)) {
         $data[$key] = in_array($rid, array_keys($user->roles));
       }
+    }
+  }
+
+  $mappings = variable_get('intercomio_mapping', array());
+  $account = new EntityDrupalWrapper('user', $user->uid);
+  foreach ($mappings as $id => $mapping) {
+    if (!empty($mapping) && isset($account->{$id})) {
+      $data[$mapping['mapping']] = $account->{$id}->value();
     }
   }
 

@@ -109,3 +109,26 @@ function intercomio_admin_form_submit(&$form, &$form_state) {
   $custom_data = array_filter($form_state['values']['intercomio_custom_data']);
   variable_set('intercomio_custom_data', $custom_data);
 }
+
+function intercomio_mapping_admin_form($form, &$form_state) {
+  $fields = field_info_instances('user', NULL);
+  $form['description'] = array(
+    '#markup' => t('<p>Use this form to map custom user fields over to Intercom.io</p>'),
+  );
+  $form['intercomio_mapping'] = array(
+    '#type' => 'container',
+    '#theme' => 'intercomio_mapping_table',
+    '#tree' => TRUE,
+  );
+  $mappings = variable_get('intercomio_mapping', array());
+  foreach ($fields['user'] as $id => $field) {
+    $form['intercomio_mapping'][$id]['label'] = array(
+      '#markup' => $field['label'],
+    );
+    $form['intercomio_mapping'][$id]['mapping'] = array(
+      '#type' => 'textfield',
+      '#default_value' => !empty($mappings[$id]['mapping']) ? $mappings[$id]['mapping'] : NULL,
+    );
+  }
+  return system_settings_form($form);
+}
