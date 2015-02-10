@@ -16,6 +16,13 @@ function intercomio_admin_form() {
     '#default_value' => variable_get('intercomio_app_id'),
   );
 
+  $form['intercomio_api_key'] = array(
+    '#type' => 'textfield',
+    '#title' => t('API Key'),
+    '#description' => t('API key with write permission used to trigger events on page load'),
+    '#default_value' => variable_get('intercomio_api_key'),
+  );
+
   $form['intercomio_role_settings'] = array(
     '#type' => 'fieldset',
     '#title' => t('Roles'),
@@ -130,5 +137,18 @@ function intercomio_mapping_admin_form($form, &$form_state) {
       '#default_value' => !empty($mappings[$id]['mapping']) ? $mappings[$id]['mapping'] : NULL,
     );
   }
+  return system_settings_form($form);
+}
+
+function intercomio_events_admin_form($form, &$form_state) {
+
+  $form['intercomio_event_list'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Page load events'),
+    '#description' => t('One event per line, following the syntax: <em>event_name|page_path_1,page_path_2</em>'),
+    '#rows' => 25,
+    '#default_value' => variable_get('intercomio_event_list'),
+  );
+
   return system_settings_form($form);
 }

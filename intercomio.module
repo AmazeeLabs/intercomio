@@ -10,7 +10,7 @@ function intercomio_menu() {
     'title' => t('Intercom.io Configuration'),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('intercomio_admin_form'),
-    'access arguments' => array('access administration pages'),
+    'access arguments' => array('administer intercomio'),
     'file' => 'intercomio.admin.inc',
   );
 
@@ -25,11 +25,32 @@ function intercomio_menu() {
     'type' => MENU_LOCAL_TASK,
     'page callback' => 'drupal_get_form',
     'page arguments' => array('intercomio_mapping_admin_form'),
-    'access arguments' => array('access administration pages'),
+    'access arguments' => array('administer intercomio'),
+    'file' => 'intercomio.admin.inc',
+  );
+
+  $items['admin/config/services/intercomio/events'] = array(
+    'title' => t('Events'),
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('intercomio_events_admin_form'),
+    'access arguments' => array('administer intercomio'),
     'file' => 'intercomio.admin.inc',
   );
 
   return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function intercomio_permission() {
+  return array(
+    'administer intercomio' => array(
+      'title' => t('Administer Intercom.io'),
+      'description' => t('Perform administration tasks for Intercom.io module.'),
+    ),
+  );
 }
 
 /**
@@ -106,6 +127,25 @@ function intercomio_page_alter(&$page) {
       $page[variable_get('intercomio_region', 'content')]['intercomio'] = array(
         '#markup' => _intercomio_get_script($user, $app_id),
       );
+      drupal_add_js(drupal_get_path('module', 'intercomio') . '/intercomio.js');
+    }
+  }
+}
+
+/**
+ * Implements hook_init().
+ */
+function intercomio_init() {
+  global $user;
+  if (!empty($user->uid) // only for logged in users
+      && variable_get('intercomio_app_id', '') // app id is set up
+      && variable_get('intercomio_enabled', '') // intercomio tracking is enabled
+      && variable_get('intercomio_event_list', '') // there are some events saved
+  ) {
+    foreach(_intercomio_get_event_list() as $event_name => $paths) {
+      if (in_array($_GET['q'], $paths)) {
+        drupal_register_shutdown_function('intercomio_track_event', $event_name);
+      }
     }
   }
 }
@@ -225,4 +265,70 @@ function _intercomio_get_script($account, $app_id) {
       })();
     </script>";
   return $output;
+}
+
+/**
+ * Get event list
+ *
+ * @return array
+ */
+function _intercomio_get_event_list() {
+  $events = &drupal_static(__FUNCTION__);
+
+  if ($events !== null) {
+    return $events;
+  }
+
+  $events_raw = explode("\n", variable_get('intercomio_event_list', ''));
+  $events_raw = array_map('trim', $events_raw); // get rid of \r in case of Windows line endings
+  $events_raw = array_filter($events_raw); // remove empty lines
+
+  $events = array();
+  foreach($events_raw as $index => $line) {
+    $parts = explode('|', $line);
+    if (isset($parts[1])) {
+      $events[$parts[0]] = explode(',', $parts[1]);
+    }
+  }
+
+  return $events;
+}
+
+/**
+ * Track an event
+ *
+ * @param string $event_name
+ */
+function intercomio_track_event($event_name) {
+  global $user;
+  $app_id = variable_get('intercomio_app_id', '');
+  $api_key = variable_get('intercomio_api_key', '');
+
+  $data = array(
+    'event_name' => $event_name,
+    'created_at' => time(),
+    'user_id' => $user->uid,
+  );
+
+  $curl_options = array(
+    CURLOPT_URL => 'https://api.intercom.io/events',
+    CURLOPT_POST => true,
+    CURLOPT_TIMEOUT => 1, // do not more than 1 sec to connect
+    CURLOPT_POSTFIELDS => json_encode($data),
+    CURLOPT_HTTPHEADER => array('Content-Type: application/json'),
+    CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
+    CURLOPT_USERPWD => "$app_id:$api_key",
+    CURLOPT_RETURNTRANSFER => true,
+  );
+
+  try {
+    $curl_handler = curl_init();
+    curl_setopt_array($curl_handler, $curl_options);
+    $return = curl_exec($curl_handler);
+    curl_close($curl_handler);
+  }
+  catch(Exception $e) {
+    watchdog_exception('intercomio', $e);
+  }
+
 }
