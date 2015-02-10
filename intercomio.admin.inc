@@ -142,12 +142,20 @@ function intercomio_mapping_admin_form($form, &$form_state) {
 
 function intercomio_events_admin_form($form, &$form_state) {
 
-  $form['intercomio_event_list'] = array(
+  $form['intercomio_page_load_events'] = array(
     '#type' => 'textarea',
     '#title' => t('Page load events'),
-    '#description' => t('One event per line, following the syntax: <em>event_name|page_path_1,page_path_2</em>'),
-    '#rows' => 25,
-    '#default_value' => variable_get('intercomio_event_list'),
+    '#description' => t('One per line with the syntax: <em>event_name|page_path</em>. Same event name can be used multiple times.'),
+    '#rows' => 10,
+    '#default_value' => variable_get('intercomio_page_load_events'),
+  );
+
+  $form['intercomio_link_click_events'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Link click events'),
+    '#description' => t('One event per line with the syntax: <em>event_name|url</em>. Same event name can be used multiple times.'),
+    '#rows' => 10,
+    '#default_value' => variable_get('intercomio_link_click_events'),
   );
 
   return system_settings_form($form);

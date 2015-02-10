@@ -140,12 +140,26 @@ function intercomio_init() {
   if (!empty($user->uid) // only for logged in users
       && variable_get('intercomio_app_id', '') // app id is set up
       && variable_get('intercomio_enabled', '') // intercomio tracking is enabled
-      && variable_get('intercomio_event_list', '') // there are some events saved
   ) {
-    foreach(_intercomio_get_event_list() as $event_name => $paths) {
+    // Trigger page load events
+    foreach(_intercomio_get_events('page_load') as $event_name => $paths) {
       if (in_array($_GET['q'], $paths)) {
         drupal_register_shutdown_function('intercomio_track_event', $event_name);
       }
+    }
+
+    // Attach link events
+    $events_data = array();
+    foreach(_intercomio_get_events('link_click') as $event_name => $urls) {
+      foreach($urls as $url) {
+        $events_data[] = array(
+          'event_name' => $event_name,
+          'url' => strpos($url, 'http') === 0 ? $url : url($url),
+        );
+      }
+    }
+    if (count($events_data)) {
+      drupal_add_js(array('intercomio' => array('link_events' => $events_data)), 'setting');
     }
   }
 }
@@ -270,26 +284,32 @@ function _intercomio_get_script($account, $app_id) {
 /**
  * Get event list
  *
+ * @param string $events_type
+ *  Events type to be loaded
+ *
  * @return array
  */
-function _intercomio_get_event_list() {
-  $events = &drupal_static(__FUNCTION__);
+function _intercomio_get_events($events_type) {
+  $events = &drupal_static(__FUNCTION__ . '_' . $events_type);
 
   if ($events !== null) {
     return $events;
   }
 
-  $events_raw = explode("\n", variable_get('intercomio_event_list', ''));
+  $events_raw = explode("\n", variable_get("intercomio_{$events_type}_events", ''));
   $events_raw = array_map('trim', $events_raw); // get rid of \r in case of Windows line endings
   $events_raw = array_filter($events_raw); // remove empty lines
 
   $events = array();
   foreach($events_raw as $index => $line) {
-    $parts = explode('|', $line);
+    $parts = explode('|', $line, 2);
     if (isset($parts[1])) {
-      $events[$parts[0]] = explode(',', $parts[1]);
+      $events[$parts[0]][] = $parts[1];
     }
   }
+
+  // Remove duplicates
+  $events = array_map('array_unique', $events);
 
   return $events;
 }
