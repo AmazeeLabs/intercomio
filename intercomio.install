@@ -16,4 +16,5 @@ function intercomio_uninstall() {
   variable_del('intercomio_inbox_type');
   variable_del('intercomio_inbox_label');
   variable_del('intercomio_custom_data');
+  // @todo: delete intercomio_NODE_TYPE_view_events variables
 }
