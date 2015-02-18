@@ -142,15 +142,25 @@ function intercomio_init() {
       && variable_get('intercomio_enabled', '') // intercomio tracking is enabled
   ) {
     // Trigger page load events
-    foreach(_intercomio_get_events('page_load') as $event_name => $paths) {
+    foreach(_intercomio_get_key_value_events('page_load') as $event_name => $paths) {
       if (in_array($_GET['q'], $paths)) {
+        drupal_register_shutdown_function('intercomio_track_event', $event_name);
+      }
+    }
+
+    // If this is a node page, parse events attached to the node type
+    if (arg(0) == 'node' && is_numeric(arg(1)) && !arg(2)) {
+      $node = menu_get_object();
+      $type = $node->type;
+      foreach(_intercomio_get_line_events($type . '_view') as $event_name) {
+        $event_name = token_replace($event_name, array('node' => $node));
         drupal_register_shutdown_function('intercomio_track_event', $event_name);
       }
     }
 
     // Attach link events
     $events_data = array();
-    foreach(_intercomio_get_events('link_click') as $event_name => $urls) {
+    foreach(_intercomio_get_key_value_events('link_click') as $event_name => $urls) {
       foreach($urls as $url) {
         $events_data[] = array(
           'event_name' => $event_name,
@@ -289,16 +299,14 @@ function _intercomio_get_script($account, $app_id) {
  *
  * @return array
  */
-function _intercomio_get_events($events_type) {
+function _intercomio_get_key_value_events($events_type) {
   $events = &drupal_static(__FUNCTION__ . '_' . $events_type);
 
   if ($events !== null) {
     return $events;
   }
 
-  $events_raw = explode("\n", variable_get("intercomio_{$events_type}_events", ''));
-  $events_raw = array_map('trim', $events_raw); // get rid of \r in case of Windows line endings
-  $events_raw = array_filter($events_raw); // remove empty lines
+  $events_raw = _intercomio_get_line_events($events_type);
 
   $events = array();
   foreach($events_raw as $index => $line) {
@@ -312,6 +320,21 @@ function _intercomio_get_events($events_type) {
   $events = array_map('array_unique', $events);
 
   return $events;
+}
+
+/**
+ * Extract events saved as multiple lines
+ *
+ * @param $events_type
+ *  Variable name used to save the events
+ *
+ * @return array
+ */
+function _intercomio_get_line_events($events_type) {
+  $events_raw = explode("\n", variable_get("intercomio_{$events_type}_events", ''));
+  $events_raw = array_map('trim', $events_raw); // get rid of \r in case of Windows line endings
+  $events_raw = array_filter($events_raw); // remove empty lines
+  return $events_raw;
 }
 
 /**
@@ -332,23 +355,69 @@ function intercomio_track_event($event_name) {
 
   $curl_options = array(
     CURLOPT_URL => 'https://api.intercom.io/events',
-    CURLOPT_POST => true,
+    CURLOPT_POST => TRUE,
     CURLOPT_TIMEOUT => 1, // do not more than 1 sec to connect
     CURLOPT_POSTFIELDS => json_encode($data),
     CURLOPT_HTTPHEADER => array('Content-Type: application/json'),
     CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
     CURLOPT_USERPWD => "$app_id:$api_key",
-    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_RETURNTRANSFER => TRUE,
   );
 
   try {
     $curl_handler = curl_init();
     curl_setopt_array($curl_handler, $curl_options);
-    $return = curl_exec($curl_handler);
+    if (!curl_exec($curl_handler)) {
+      $args = array(
+        '@errno' => curl_errno($curl_handler),
+        '@error' => curl_error($curl_handler),
+      );
+      watchdog('intercomio', 'Failed to sent Intercom.io event with error #@errno: @error', $args, WATCHDOG_ERROR);
+    }
     curl_close($curl_handler);
   }
   catch(Exception $e) {
     watchdog_exception('intercomio', $e);
   }
+}
 
+/**
+ * Implements hook_form_FORM_ID_alter() for node_type_form().
+ */
+function intercomio_form_node_type_form_alter(&$form, &$form_state) {
+  $form['intercomio'] = array(
+    '#type' => 'fieldset',
+    '#group' => 'additional_settings',
+    '#title' => t('Intercom.io events'),
+    '#collapsible' => TRUE,
+    '#tree' => TRUE,
+  );
+
+  $form['intercomio']['view_events'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Full node view events'),
+    '#description' => t('One per line. Tokens supported'),
+    '#default_value' => variable_get('intercomio_' . $form['#node_type']->type . '_view_events', ''),
+
+  );
+
+  $form['intercomio']['view_events_tokens'] = array(
+    '#theme' => 'token_tree',
+    '#token_types' => array('node'),
+    '#global_types' => TRUE,
+    '#click_insert' => TRUE,
+  );
+
+  $form['#submit'][] = 'intercomio_form_node_type_form_submit';
+}
+
+/**
+ * Submit callback for node_type_form().
+ */
+function intercomio_form_node_type_form_submit($form, &$form_state) {
+  $node_type = $form_state['values']['type'];
+  $intercom_values = $form_state['values']['intercomio'];
+  foreach($intercom_values as $name => $value) {
+    variable_set('intercomio_' . $node_type . '_' . $name, $value);
+  }
 }
