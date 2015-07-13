@@ -238,7 +238,8 @@ function _intercomio_get_script($account, $app_id) {
     'app_id' => $app_id,
     'user_id' => $account->uid,
     'email' => $account->mail,
-    'created_at' => $account->created
+    'created_at' => $account->created,
+    'name' => format_username($account),
   );
 
   $custom_data = array();
