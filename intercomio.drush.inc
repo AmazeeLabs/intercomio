@@ -55,7 +55,7 @@ function drush_intercomio_update_users($uids = NULL) {
     );
 
     $custom_data = array();
-    $custom_data += module_invoke_all('intercomio_custom_data', variable_get('intercomio_custom_data', array()));
+    $custom_data += module_invoke_all('intercomio_custom_data', variable_get('intercomio_custom_data', array()), $account);
     if (!empty($custom_data)) {
       $data['custom_data'] = $custom_data;
     }
@@ -99,7 +99,7 @@ function drush_intercomio_update_users($uids = NULL) {
         }
         else {
           $succeded++;
-          drush_log(dt('User @mail sent to Intercomio.', array('@mail' => $account->mai)), 'success');
+          drush_log(dt('User @mail sent to Intercomio.', array('@mail' => $account->mail)), 'success');
         }
       }
 

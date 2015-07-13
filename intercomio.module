@@ -189,22 +189,21 @@ function intercomio_intercomio_custom_data_info() {
 /**
  * Implements hook_intercomio_custom_data().
  */
-function intercomio_intercomio_custom_data($keys) {
-  global $user;
+function intercomio_intercomio_custom_data($keys, $account) {
   $data = array();
   foreach (user_roles(TRUE) as $rid => $role) {
     foreach ($keys as $key) {
       if ($key === 'role_' . str_replace(' ', '_', $role)) {
-        $data[$key] = in_array($rid, array_keys($user->roles));
+        $data[$key] = in_array($rid, array_keys($account->roles));
       }
     }
   }
 
   $mappings = variable_get('intercomio_mapping', array());
-  $account = new EntityDrupalWrapper('user', $user->uid);
+  $account_wrapper = new EntityDrupalWrapper('user', $account->uid);
   foreach ($mappings as $id => $mapping) {
-    if (!empty($mapping) && isset($account->{$id})) {
-      $data[$mapping['mapping']] = $account->{$id}->value();
+    if (!empty($mapping) && isset($account_wrapper->{$id})) {
+      $data[$mapping['mapping']] = $account_wrapper->{$id}->value();
     }
   }
 
@@ -243,7 +242,7 @@ function _intercomio_get_script($account, $app_id) {
   );
 
   $custom_data = array();
-  $custom_data += module_invoke_all('intercomio_custom_data', variable_get('intercomio_custom_data', array()));
+  $custom_data += module_invoke_all('intercomio_custom_data', variable_get('intercomio_custom_data', array()), $account);
   if (!empty($custom_data)) {
     $intercom_settings['custom_data'] = $custom_data;
   }
