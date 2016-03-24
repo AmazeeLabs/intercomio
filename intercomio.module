@@ -227,6 +227,48 @@ function intercomio_custom_data_settings() {
 }
 
 /**
+ * Implements hook_user_delete().
+ */
+function intercomio_user_delete($account) {
+  // When deleting an user, we also want to remove it from intercom.
+  // There is also a PHP library for intercom here
+  // https://developers.intercom.io/reference#sdks-client-libraries but it is
+  // just too much for what we need. We will just use a plain curl request.
+  try {
+    $app_id = variable_get('intercomio_app_id', '');
+    $api_key = variable_get('intercomio_api_key', '');
+    $curl_options = array(
+      CURLOPT_URL => 'https://api.intercom.io/users?email=' . $account->mail,
+      CURLOPT_CUSTOMREQUEST => 'DELETE',
+      CURLOPT_TIMEOUT => 1, // do not more than 1 sec to connect
+      CURLOPT_HTTPHEADER => array("Accept: application/json"),
+      CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
+      CURLOPT_USERPWD => "$app_id:$api_key",
+      CURLOPT_RETURNTRANSFER => TRUE,
+    );
+    $curl = curl_init();
+    curl_setopt_array($curl, $curl_options);
+    if (!$result = curl_exec($curl)) {
+      $args = array(
+        '@errno' => curl_errno($curl),
+        '@error' => curl_error($curl),
+        '@mail' => $account->mail,
+      );
+      throw new \Exception(t('Failed to delete the user @mail on Intercom.io side with error #@errno: @error', $args));
+    }
+    ob_start();
+    echo '<pre>';
+    print_r(json_decode($result));
+    $output = ob_get_clean();
+    watchdog('intercom', "Deleted user on intercom: !output", array('!output' => $output));
+    curl_close($curl);
+  }
+  catch(Exception $e) {
+    watchdog_exception('intercomio', $e);
+  }
+}
+
+/**
  * Return the javascript needed for intercom.io.
  *
  * I don't believe this can be done in a drupal_add_js call as
