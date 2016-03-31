@@ -238,7 +238,7 @@ function intercomio_user_delete($account) {
     $app_id = variable_get('intercomio_app_id', '');
     $api_key = variable_get('intercomio_api_key', '');
     $curl_options = array(
-      CURLOPT_URL => 'https://api.intercom.io/users?email=' . $account->mail,
+      CURLOPT_URL => 'https://api.intercom.io/users?email=' . urlencode($account->mail),
       CURLOPT_CUSTOMREQUEST => 'DELETE',
       CURLOPT_TIMEOUT => 1, // do not more than 1 sec to connect
       CURLOPT_HTTPHEADER => array("Accept: application/json"),
