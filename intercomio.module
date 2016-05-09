@@ -203,7 +203,24 @@ function intercomio_intercomio_custom_data($keys, $account) {
   $account_wrapper = new EntityDrupalWrapper('user', $account->uid);
   foreach ($mappings as $id => $mapping) {
     if (!empty($mapping) && isset($account_wrapper->{$id})) {
-      $data[$mapping['mapping']] = $account_wrapper->{$id}->value();
+      $value = $account_wrapper->{$id}->value();
+      if (!is_array($value)) {
+        $value = array($value);
+      }
+      // Currently, we support support just strings, numbers, boolean values and
+      // objects with a field called 'name'.
+      $intercomio_data = array();
+      foreach ($value as $key => $val) {
+        if (is_string($val) || is_numeric($val) || is_bool($val)) {
+          $intercomio_data[] = $val;
+          continue;
+        }
+        if (is_object($val) && !empty($val->name)) {
+          $intercomio_data[] = $val->name;
+          continue;
+        }
+      }
+      $data[$mapping['mapping']] = implode('&&', $intercomio_data);
     }
   }
 
