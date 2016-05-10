@@ -203,6 +203,7 @@ function intercomio_intercomio_custom_data($keys, $account) {
   $account_wrapper = new EntityDrupalWrapper('user', $account->uid);
   foreach ($mappings as $id => $mapping) {
     if (!empty($mapping) && isset($account_wrapper->{$id})) {
+      $field_wrapper = $account_wrapper->{$id};
       $value = $account_wrapper->{$id}->value();
       if (!is_array($value)) {
         $value = array($value);
@@ -211,6 +212,15 @@ function intercomio_intercomio_custom_data($keys, $account) {
       // objects with a field called 'name'.
       $intercomio_data = array();
       foreach ($value as $key => $val) {
+        // For date fields, we convert them back to dates.
+        if ($field_wrapper->type() == 'date' && !is_null($val)) {
+          $val = format_date($val, 'custom', 'Y-m-d H:i:s');
+          // If the last part of the date is -01-01 00:00:00 then we consider
+          // only the year.
+          if (strpos($val, '-01-01 00:00:00') === 4) {
+            $val = substr($val, 0, 4);
+          }
+        }
         if (is_string($val) || is_numeric($val) || is_bool($val)) {
           $intercomio_data[] = $val;
           continue;
