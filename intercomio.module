@@ -317,7 +317,7 @@ function _intercomio_get_script($account, $app_id) {
   }
 
   if (variable_get('intercomio_secure') && $secure_key = variable_get('intercomio_secure_key')) {
-    $intercom_settings['user_hash'] = sha1($secure_key . $account->uid);
+    $intercom_settings['user_hash'] = hash_hmac('sha256', $account->uid, $secure_key);
   }
 
   if ($inbox_type = variable_get('intercomio_inbox_type')) {
