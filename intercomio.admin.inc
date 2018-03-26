@@ -16,10 +16,17 @@ function intercomio_admin_form() {
     '#default_value' => variable_get('intercomio_app_id'),
   );
 
+  $form['intercomio_access_token'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Access token'),
+    '#description' => t('Enter the Intercomio access token.'),
+    '#default_value' => variable_get('intercomio_access_token'),
+  );
+
   $form['intercomio_api_key'] = array(
     '#type' => 'textfield',
     '#title' => t('API Key'),
-    '#description' => t('API key with write permission used to trigger events on page load'),
+    '#description' => t('API key with write permission used to trigger events on page load') . '. ' . t('<em>Deprecated, use the access token instead.</em>'),
     '#default_value' => variable_get('intercomio_api_key'),
   );
 

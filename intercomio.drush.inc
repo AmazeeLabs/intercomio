@@ -38,8 +38,7 @@ function drush_intercomio_update_users($uids = NULL) {
   $total = count($result);
   $index = 0;
   $succeded = 0;
-  $app_id = variable_get('intercomio_app_id', '');
-  $api_key = variable_get('intercomio_api_key', '');
+  $access_token = variable_get('intercomio_access_token', '');
 
   foreach ($result as $row) {
     $index++;
@@ -71,9 +70,7 @@ function drush_intercomio_update_users($uids = NULL) {
       CURLOPT_POST => TRUE,
       CURLOPT_TIMEOUT => 2, // do not wait more than 2 sec to connect
       CURLOPT_POSTFIELDS => json_encode($data),
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Accept: application/json'),
-      CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
-      CURLOPT_USERPWD => "$app_id:$api_key",
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Accept: application/json', "Authorization:Bearer " . $access_token),
       CURLOPT_RETURNTRANSFER => TRUE,
     );
     // End step 2.

@@ -262,15 +262,12 @@ function intercomio_user_delete($account) {
   // https://developers.intercom.io/reference#sdks-client-libraries but it is
   // just too much for what we need. We will just use a plain curl request.
   try {
-    $app_id = variable_get('intercomio_app_id', '');
-    $api_key = variable_get('intercomio_api_key', '');
+    $access_token = variable_get('intercomio_access_token', '');
     $curl_options = array(
       CURLOPT_URL => 'https://api.intercom.io/users?email=' . urlencode($account->mail),
       CURLOPT_CUSTOMREQUEST => 'DELETE',
       CURLOPT_TIMEOUT => 1, // do not more than 1 sec to connect
-      CURLOPT_HTTPHEADER => array("Accept: application/json"),
-      CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
-      CURLOPT_USERPWD => "$app_id:$api_key",
+      CURLOPT_HTTPHEADER => array("Accept: application/json", "Authorization:Bearer " . $access_token),
       CURLOPT_RETURNTRANSFER => TRUE,
     );
     $curl = curl_init();
@@ -413,8 +410,7 @@ function _intercomio_get_line_events($events_type) {
  */
 function intercomio_track_event($event_name) {
   global $user;
-  $app_id = variable_get('intercomio_app_id', '');
-  $api_key = variable_get('intercomio_api_key', '');
+  $access_token = variable_get('intercomio_access_token', '');
 
   $data = array(
     'event_name' => $event_name,
@@ -427,9 +423,7 @@ function intercomio_track_event($event_name) {
     CURLOPT_POST => TRUE,
     CURLOPT_TIMEOUT => 1, // do not more than 1 sec to connect
     CURLOPT_POSTFIELDS => json_encode($data),
-    CURLOPT_HTTPHEADER => array('Content-Type: application/json'),
-    CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
-    CURLOPT_USERPWD => "$app_id:$api_key",
+    CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization:Bearer ' . $access_token),
     CURLOPT_RETURNTRANSFER => TRUE,
   );
 
